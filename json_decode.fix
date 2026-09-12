@@ -37,34 +37,32 @@ import Std::{
 // A document and how far into it a reading has come.
 type Cursor = unbox struct { _bytes : Array U8, _size : I64, _at : I64 };
 
-namespace Cursor {
-    // A cursor standing at the first byte of a document.
-    //
-    // # Parameters
-    // * `text` - The document to read.
-    make : String -> Cursor;
-    make = |text| (
-        // `get_bytes` answers with the string's own array, whose last byte is the null terminator
-        // the string keeps behind its text; the document ends one byte short of it.
-        let bytes = text.get_bytes;
-        Cursor { _bytes : bytes, _size : bytes.@size - 1, _at : 0 }
-    );
-}
+// A cursor standing at the first byte of a document.
+//
+// # Parameters
+// * `text` - The document to read.
+make_cursor : String -> Cursor;
+make_cursor = |text| (
+    // `get_bytes` answers with the string's own array, whose last byte is the null terminator
+    // the string keeps behind its text; the document ends one byte short of it.
+    let bytes = text.get_bytes;
+    Cursor { _bytes : bytes, _size : bytes.@size - 1, _at : 0 }
+);
 
 // Where the text of a string stands in a document, and whether an escape stands among its bytes.
 type Span = unbox struct { _from : I64, _to : I64, _escaped : Bool };
 
-namespace Span {
-    // The span of the bytes from `from` up to `to`, which `escaped` says whether an escape stands
-    // among.
-    //
-    // # Parameters
-    // * `from` - The position of the first byte of the text.
-    // * `to` - The position one past its last byte.
-    // * `escaped` - Whether a backslash stands between the two.
-    make : I64 -> I64 -> Bool -> Span;
-    make = |from, to, escaped| Span { _from : from, _to : to, _escaped : escaped };
+// The span of the bytes from `from` up to `to`, which `escaped` says whether an escape stands
+// among.
+//
+// # Parameters
+// * `from` - The position of the first byte of the text.
+// * `to` - The position one past its last byte.
+// * `escaped` - Whether a backslash stands between the two.
+make_span : I64 -> I64 -> Bool -> Span;
+make_span = |from, to, escaped| Span { _from : from, _to : to, _escaped : escaped };
 
+namespace Span {
     // The position of the first byte of the text.
     from : Span -> I64;
     from = |span| span.@_from;
@@ -89,7 +87,7 @@ namespace Decoder {
     // * `decoder` - The reading to run.
     decode : String -> Decoder a -> Result ErrMsg a;
     decode = |text, decoder| (
-        let (value, _) = *decoder.run(Cursor::make(text));
+        let (value, _) = *decoder.run(make_cursor(text));
         ok $ value
     );
 
@@ -207,7 +205,7 @@ namespace Decoder {
             if i >= size { break $ err $ "expected a closing quote at " + i.to_string };
             let byte = bytes.@(i);
             if byte == '"' {
-                break $ ok $ (Span::make(from, i, escaped), c.set__at(i + 1))
+                break $ ok $ (make_span(from, i, escaped), c.set__at(i + 1))
             };
             if byte == '\\' { continue $ (i + 2, true) };
             continue $ (i + 1, escaped)
