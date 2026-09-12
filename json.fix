@@ -49,14 +49,9 @@ namespace Json {
     // # Examples
     //
     // ```
-    // x_of : String -> Result ErrMsg (Option F64);
-    // x_of = |text| (
-    //     let document = *read(text);
-    //     pure $ document.as_object.find("x").map(as_number)
-    // );
-    //
-    // x_of("{\"x\":1.5,\"y\":2.5}")   // ok(some(1.5))
-    // x_of("{\"y\":2.5}")            // ok(none())
+    // let document = read("{\"x\":1.5,\"y\":2.5}").as_ok;
+    // document.as_object.find("x")   // some(number(1.5))
+    // document.as_object.find("z")   // none()
     // ```
     find : String -> Array (String, Json) -> Option Json;
     find = |name, members| (
