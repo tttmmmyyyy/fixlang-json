@@ -1,6 +1,6 @@
 [general]
 name = "json"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["tttmmmyyyy"]
 description = "Reads and writes JSON documents, either into a tree or straight into the values a program wants."
 

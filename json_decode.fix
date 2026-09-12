@@ -232,6 +232,23 @@ namespace Decoder {
     //
     // # Parameters
     // * `span` - Where the text stands.
+    //
+    // # Examples
+    //
+    // ```
+    // // The text of a string value.
+    // read_string : Decoder String;
+    // read_string = (let span = *read_text_span; read_text(span));
+    //
+    // read_string.decode("\"a b\"")        // ok("a b")
+    // read_string.decode("\"\\u0078\"")     // ok("x")   -- the escape is resolved here
+    //
+    // // The name of a member, which `read_member` hands you as a span.
+    // read_name : Decoder String;
+    // read_name = (enter_object;; let name = *read_member; read_text(name));
+    //
+    // read_name.decode("{\"x\":1.5}")      // ok("x")
+    // ```
     read_text : Span -> Decoder String;
     read_text = |span| Decoder { _run : |c|
         let value = *Text::unescape(c.@_bytes, span.from, span.to);
@@ -477,7 +494,7 @@ namespace Decoder {
     _skip_nested : Decoder ();
     _skip_nested = loop_m(0, |depth|
         let quoted = *took('"');
-        if quoted { read_text_span;; continue_m $ depth };
+        if quoted { _read_text_span_body;; continue_m $ depth };
         let object = *is_at('{');
         let array = *is_at('[');
         if object || array { advance;; continue_m $ depth + 1 };

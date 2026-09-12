@@ -1,7 +1,7 @@
 module Test;
 
 import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, find, null, number, object, string}, Number::{append, parse}, read, write};
-import Json.Decode::{Decoder, Span, Decoder::{decode, enter_object, fail_expecting, is_named, is_named_as_written, read_member, read_number, read_text}};
+import Json.Decode::{Decoder, Span, Decoder::{decode, enter_object, fail_expecting, is_named, is_named_as_written, read_array, read_bool, read_member, read_null, read_number, read_object, read_text, read_text_span, took_null}};
 import Std::{
     loop, Array, Bool, ErrMsg, F64, I64, IO, Option, Result, String, U8,
     Array::{empty, get_sub, push_back, to_iter, @, @size}, Debug::{assert, assert_eq},
@@ -232,6 +232,65 @@ test_read_numbers = (
     )
 );
 
+// A point read from the members `x` and `y` of an object.
+_point_of_x_y : Decoder (F64, F64);
+_point_of_x_y = read_object((0.0, 0.0), |name, (x, y)|
+    if *is_named(name, "x") { let v = *read_number; pure $ (v, y) };
+    if *is_named(name, "y") { let v = *read_number; pure $ (x, v) };
+    pure $ (x, y)
+);
+
+// The numbers of an array.
+_numbers : Decoder (Array F64);
+_numbers = read_array([], |values| let v = *read_number; pure $ values.push_back(v));
+
+// A reading built from the two combinators takes the members it knows in any order, passes over
+// the ones it does not -- strings and nested objects among them -- and never asks the caller to
+// skip white space.
+test_read_object : IO ();
+test_read_object = (
+    let point = _point_of_x_y;
+    assert_eq(|_| "in order", point.decode("{\"x\":1.0,\"y\":2.0}").as_ok, (1.0, 2.0));;
+    assert_eq(|_| "out of order", point.decode("{\"y\":2.0,\"x\":1.0}").as_ok, (1.0, 2.0));;
+    assert_eq(|_| "a name it does not know", point.decode("{\"z\":9.0,\"x\":1.0}").as_ok, (1.0, 0.0));;
+    assert_eq(|_| "white space", point.decode(" { \"x\" : 1.0 , \"y\" : 2.0 } ").as_ok, (1.0, 2.0));;
+    assert_eq(|_| "no member at all", point.decode("{}").as_ok, (0.0, 0.0));;
+    // The values passed over here are a string, a nested object and a nested array, which the skip
+    // has to walk without taking the braces inside the string for its own.
+    let nested = "{\"name\":\"a } b\",\"opts\":{\"1\":[1.0,true],\"2\":{\"3\":\"]\"}},\"x\":1.0}";
+    assert_eq(|_| "a string, an object and an array passed over", point.decode(nested).as_ok, (1.0, 0.0));;
+
+    let numbers = _numbers;
+    assert_eq(|_| "an array", numbers.decode("[1.0, 2.0, 3.0]").as_ok, [1.0, 2.0, 3.0]);;
+    assert_eq(|_| "an empty array", numbers.decode("[]").as_ok, []);;
+    assert_eq(|_| "an array with space", numbers.decode(" [ 1.0 , 2.0 ] ").as_ok, [1.0, 2.0])
+);
+
+// The three literals a document may hold where a value stands.
+test_read_literals : IO ();
+test_read_literals = (
+    assert_eq(|_| "true", read_bool.decode("true").as_ok, true);;
+    assert_eq(|_| "false", read_bool.decode(" false ").as_ok, false);;
+    assert_eq(|_| "not a bool", read_bool.decode("null").is_err, true);;
+    assert_eq(|_| "null", read_null.decode("null").is_ok, true);;
+    assert_eq(|_| "took a null", took_null.decode("null").as_ok, true);;
+    assert_eq(|_| "left a number alone", took_null.decode("1.5").as_ok, false)
+);
+
+// The text of the string value the cursor stands on.
+_string_value : Decoder String;
+_string_value = (let span = *read_text_span; read_text(span));
+
+// A string value is read where it stands, with no quote for the caller to take first.
+test_read_text_value : IO ();
+test_read_text_value = (
+    let text = _string_value;
+    assert_eq(|_| "plain", text.decode("\"a b\"").as_ok, "a b");;
+    assert_eq(|_| "escaped", text.decode("\"\\u0078\"").as_ok, "x");;
+    assert_eq(|_| "with space", text.decode("  \"a\"").as_ok, "a");;
+    assert_eq(|_| "not a string", text.decode("1.5").is_err, true)
+);
+
 test : IO ();
 test = (
     test_round_trip;;
@@ -240,6 +299,9 @@ test = (
     test_read_rejects;;
     test_find;;
     test_decode;;
+    test_read_object;;
+    test_read_literals;;
+    test_read_text_value;;
     test_write_numbers;;
     test_read_numbers;;
     println("All tests passed.")
