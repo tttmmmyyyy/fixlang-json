@@ -34,15 +34,15 @@ than that loses the places beyond it.
 `Json.Decode` reads what you want and leaves the rest of the document unread.
 
 ```
-import Json.Decode::Decoder::{decode, expect, member, name_bytes, named, number};
+import Json.Decode::Decoder::{decode, enter_object, is_named, read_member, read_number};
 
 // The number the member `x` of the object at the cursor holds.
 _x : Decoder F64;
 _x = (
-    expect('{', "an object");;
-    let span = *member;
-    let is_x = *named(span, name_bytes("x"));
-    if !is_x { Decoder::expected("the member x") };
+    enter_object;;
+    let span = *read_member;
+    let is_x = *is_named(span, "x");
+    if !is_x { Decoder::fail_expecting("the member x") };
     number
 );
 
