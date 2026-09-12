@@ -13,8 +13,7 @@ import Std::{
 // A JSON value.
 //
 // The members of an object stand in the order the document gives them, and writing the value out
-// writes them in that order. `find` scans them, so looking a member up costs as much as the object
-// has members.
+// writes them in that order.
 type Json = union {
     null : (),
     bool : Bool,
