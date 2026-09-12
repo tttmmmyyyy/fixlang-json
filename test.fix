@@ -1,6 +1,6 @@
 module Test;
 
-import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, find, null, number, object, string}, Number::{append, parse}, read, write};
+import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, null, number, object, string}, Object::find, Number::{_parse, _write}, read, write};
 import Json.Decode::{Decoder, Span, Decoder::{decode, enter_object, fail_expecting, is_named, is_named_as_written, read_array, read_bool, read_member, read_null, read_number, read_object, read_text, read_text_span, took_null}};
 import Std::{
     loop, Array, Bool, ErrMsg, F64, I64, IO, Option, Result, String, U8,
@@ -100,9 +100,9 @@ test_read_rejects = (
 test_find : IO ();
 test_find = (
     let members = Json::read("{\"a\":1,\"b\":2,\"a\":3}").as_ok.as_object;
-    assert_eq(|_| "find a", members.Json::find("a").as_some.as_number, 1.0);;
-    assert_eq(|_| "find b", members.Json::find("b").as_some.as_number, 2.0);;
-    assert_eq(|_| "find c", members.Json::find("c").is_none, true)
+    assert_eq(|_| "find a", members.find("a").as_some.as_number, 1.0);;
+    assert_eq(|_| "find b", members.find("b").as_some.as_number, 2.0);;
+    assert_eq(|_| "find c", members.find("c").is_none, true)
 );
 
 // The reading that carries the position through a monad.
@@ -223,7 +223,7 @@ test_read_numbers = (
     ).@0;
     (fixed + drawn).to_iter.fold_m((), |text, _|
         let bytes = text.get_bytes;
-        let ours = Json::Number::parse(bytes, 0, bytes.@size - 1);
+        let ours = Json::Number::_parse(bytes, 0, bytes.@size - 1);
         let runtime : Result ErrMsg F64 = from_string(text);
         assert_eq(|_| "read " + text + ": one answers and the other does not",
                   ours.is_ok, runtime.is_ok);;

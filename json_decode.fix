@@ -26,7 +26,7 @@
 // A reading that fails answers with a message naming what the grammar expected and where it stood.
 module Json.Decode;
 
-import Json::{Number::parse, Text::unescape};
+import Json::{Number::_parse, Text::_unescape};
 import Std::{
     loop, loop_m, Array, Bool, ErrMsg, F64, Functor, I64, Monad, Result, String, U8, Array::{@, @size}, 
     LoopState::{break, break_m, continue, continue_m}, Monad::pure, Result::{err, ok}, 
@@ -279,7 +279,7 @@ namespace Decoder {
     // ```
     read_text : Span -> Decoder String;
     read_text = |span| Decoder { _run : |c|
-        let value = *Text::unescape(c.@_bytes, span.from, span.to);
+        let value = *Text::_unescape(c.@_bytes, span.from, span.to);
         ok $ (value, c)
     };
 
@@ -329,7 +329,7 @@ namespace Decoder {
     // * `cursor` - Where the reading stands.
     _named_escaped : Span -> String -> Cursor -> Result ErrMsg (Bool, Cursor);
     _named_escaped = |span, name, cursor| (
-        let value = *Text::unescape(cursor.@_bytes, span.from, span.to);
+        let value = *Text::_unescape(cursor.@_bytes, span.from, span.to);
         ok $ (value == name, cursor)
     );
 
@@ -353,7 +353,7 @@ namespace Decoder {
             break $ i
         );
         if end == at { err $ "expected a number at " + at.to_string };
-        let value = *Number::parse(bytes, at, end);
+        let value = *Number::_parse(bytes, at, end);
         ok $ (value, c.set__at(end))
     };
 

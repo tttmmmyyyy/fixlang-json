@@ -4,15 +4,18 @@ into a tree, or read straight into the values a program wants without a tree sta
 # Reading a document into a tree
 
 ```
-import Json::{Json, Json::{as_array, as_number, as_object, find}, read};
+import Json::{Json, Object, Json::{as_array, as_number, as_object}, Object::find, read};
 
 let document = *read(text);
 let coordinates = document.as_object.find("coordinates").as_some.as_array;
 let first_x = coordinates.@(0).as_object.find("x").as_some.as_number;
 ```
 
-A value is held unboxed, so an array of values holds them where they stand. The members of an
-object stand in the order the document gives them, and `find` scans them.
+A value is held unboxed, so an array of values holds them where they stand.
+
+An object's members are an `Object`, which is `Array (String, Json)`: a name and the value standing
+under it, in the order the document gives them. `find` walks that order, so a document whose objects
+are large and read often is one to build a `HashMap` from once.
 
 # Writing a document
 
