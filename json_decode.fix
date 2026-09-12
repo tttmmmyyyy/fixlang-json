@@ -54,6 +54,30 @@ namespace Cursor {
 // Where the text of a string stands in a document, and whether an escape stands among its bytes.
 type Span = unbox struct { _from : I64, _to : I64, _escaped : Bool };
 
+namespace Span {
+    // The span of the bytes from `from` up to `to`, which `escaped` says whether an escape stands
+    // among.
+    //
+    // # Parameters
+    // * `from` - The position of the first byte of the text.
+    // * `to` - The position one past its last byte.
+    // * `escaped` - Whether a backslash stands between the two.
+    make : I64 -> I64 -> Bool -> Span;
+    make = |from, to, escaped| Span { _from : from, _to : to, _escaped : escaped };
+
+    // The position of the first byte of the text.
+    from : Span -> I64;
+    from = |span| span.@_from;
+
+    // The position one past the last byte of the text.
+    to : Span -> I64;
+    to = |span| span.@_to;
+
+    // Whether a backslash stands among the bytes, so that the text needs unescaping to be read.
+    escaped : Span -> Bool;
+    escaped = |span| span.@_escaped;
+}
+
 // A reading that takes a value out of a document and leaves the position after it.
 type Decoder a = unbox struct { _run : Cursor -> Result ErrMsg (a, Cursor) };
 
@@ -183,7 +207,7 @@ namespace Decoder {
             if i >= size { break $ err $ "expected a closing quote at " + i.to_string };
             let byte = bytes.@(i);
             if byte == '"' {
-                break $ ok $ (Span { _from : from, _to : i, _escaped : escaped }, c.set__at(i + 1))
+                break $ ok $ (Span::make(from, i, escaped), c.set__at(i + 1))
             };
             if byte == '\\' { continue $ (i + 2, true) };
             continue $ (i + 1, escaped)
@@ -196,7 +220,7 @@ namespace Decoder {
     // * `span` - Where the text stands.
     read_text : Span -> Decoder String;
     read_text = |span| Decoder { _run : |c|
-        let value = *Text::unescape(c.@_bytes, span.@_from, span.@_to);
+        let value = *Text::unescape(c.@_bytes, span.from, span.to);
         ok $ (value, c)
     };
 
@@ -210,7 +234,7 @@ namespace Decoder {
     // * `name` - The name to compare it against.
     is_named : Span -> String -> Decoder Bool;
     is_named = |span, name| (
-        if span.@_escaped { Decoder { _run : |c| _named_escaped(span, name, c) } };
+        if span.escaped { Decoder { _run : |c| _named_escaped(span, name, c) } };
         is_named_as_written(span, name)
     );
 
@@ -228,10 +252,10 @@ namespace Decoder {
         // `get_bytes` answers with the string's own array, whose last byte is the null terminator.
         let name = name.get_bytes;
         let size = name.@size - 1;
-        if span.@_to - span.@_from != size { ok $ (false, c) };
+        if span.to - span.from != size { ok $ (false, c) };
         let same = loop((0), |i|
             if i == size { break $ true };
-            if bytes.@(span.@_from + i) != name.@(i) { break $ false };
+            if bytes.@(span.from + i) != name.@(i) { break $ false };
             continue $ i + 1
         );
         ok $ (same, c)
@@ -246,7 +270,7 @@ namespace Decoder {
     // * `cursor` - Where the reading stands.
     _named_escaped : Span -> String -> Cursor -> Result ErrMsg (Bool, Cursor);
     _named_escaped = |span, name, cursor| (
-        let value = *Text::unescape(cursor.@_bytes, span.@_from, span.@_to);
+        let value = *Text::unescape(cursor.@_bytes, span.from, span.to);
         ok $ (value == name, cursor)
     );
 
