@@ -35,7 +35,7 @@ import Std::{
 };
 
 // A document and how far into it a reading has come.
-type Cursor = unbox struct { _bytes : Array U8, _size : I64, _at : I64 };
+type Cursor = struct { _bytes : Array U8, _size : I64, _at : I64 };
 
 // A cursor standing at the first byte of a document.
 //
@@ -50,7 +50,7 @@ make_cursor = |text| (
 );
 
 // Where the text of a string stands in a document, and whether an escape stands among its bytes.
-type Span = unbox struct { _from : I64, _to : I64, _escaped : Bool };
+type Span = struct { _from : I64, _to : I64, _escaped : Bool };
 
 // The span of the bytes from `from` up to `to`, which `escaped` says whether an escape stands
 // among.
@@ -77,7 +77,7 @@ namespace Span {
 }
 
 // A reading that takes a value out of a document and leaves the position after it.
-type Decoder a = unbox struct { _run : Cursor -> Result ErrMsg (a, Cursor) };
+type Decoder a = struct { _run : Cursor -> Result ErrMsg (a, Cursor) };
 
 namespace Decoder {
     // Runs a reading over a whole document, and answers with what it read.
