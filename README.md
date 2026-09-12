@@ -6,9 +6,9 @@ into a tree, or read straight into the values a program wants without a tree sta
 ```
 import Json::{Json, Json::{as_array, as_number, as_object, find}, read};
 
-let document = *Json::read(text);
-let coordinates = document.as_object.Json::find("coordinates").as_some.as_array;
-let first_x = coordinates.@(0).as_object.Json::find("x").as_some.as_number;
+let document = *read(text);
+let coordinates = document.as_object.find("coordinates").as_some.as_array;
+let first_x = coordinates.@(0).as_object.find("x").as_some.as_number;
 ```
 
 A value is held unboxed, so an array of values holds them where they stand. The members of an
@@ -19,11 +19,11 @@ object stand in the order the document gives them, and `find` scans them.
 ```
 import Json::{Json, Json::{array, number, object, string}, write};
 
-let document = Json::object([
-    ("name", Json::string("a point")),
-    ("at", Json::array([Json::number(1.5), Json::number(-2.25)]))
+let document = object([
+    ("name", string("a point")),
+    ("at", array([number(1.5), number(-2.25)]))
 ]);
-let text = Json::write(8_U8, document);   // {"name":"a point","at":[1.5,-2.25]}
+let text = write(8_U8, document);   // {"name":"a point","at":[1.5,-2.25]}
 ```
 
 `write` takes how many places after the point a number is written to. A number carrying further

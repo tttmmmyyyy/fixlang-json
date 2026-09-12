@@ -49,9 +49,9 @@ namespace Json {
     // # Examples
     //
     // ```
-    // let document = *Json::read("{\"x\":1.5,\"y\":2.5}");
-    // document.as_object.Json::find("x")   // some(Json::number(1.5))
-    // document.as_object.Json::find("z")   // none()
+    // let document = *read("{\"x\":1.5,\"y\":2.5}");
+    // document.as_object.find("x")   // some(number(1.5))
+    // document.as_object.find("z")   // none()
     // ```
     find : String -> Array (String, Json) -> Option Json;
     find = |name, members| (
