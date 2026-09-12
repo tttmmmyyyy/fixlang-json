@@ -5,7 +5,7 @@ module Json;
 import Std::{
     loop, Array, Bool, Eq, ErrMsg, F64, I64, Option, Result, String, U8, 
     Array::{@, @size, empty, get_sub, push_back}, F64::to_string_precision, FromBytes::from_bytes, 
-    FromString::from_string, Iterator::{fold, range}, LoopState::{break, continue}, 
+    FromString::from_string, Iterator::{fold, loop_iter, range}, LoopState::{break, continue}, 
     Option::{as_some, is_some, none, some}, Result::{as_err, as_ok, err, is_err, ok}, String::get_bytes, 
     ToF64::f64, ToI64::i64, ToString::to_string, ToU8::u8, Tuple2::{@0, @1}
 };
@@ -47,12 +47,10 @@ namespace Json {
     // * `members` - The members of an object.
     find : String -> Array (String, Json) -> Option Json;
     find = |name, members| (
-        let size = members.@size;
-        loop(0, |i|
-            if i == size { break $ none() };
+        range(0, members.@size).loop_iter(none(), |i, _|
             let member = members.@(i);
             if member.@0 == name { break $ some(member.@1) };
-            continue $ i + 1
+            continue $ none()
         )
     );
 }
