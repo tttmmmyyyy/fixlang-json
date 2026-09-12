@@ -45,6 +45,14 @@ namespace Json {
     // # Parameters
     // * `name` - The name to look for.
     // * `members` - The members of an object.
+    //
+    // # Examples
+    //
+    // ```
+    // let document = *Json::read("{\"x\":1.5,\"y\":2.5}");
+    // document.as_object.Json::find("x")   // some(Json::number(1.5))
+    // document.as_object.Json::find("z")   // none()
+    // ```
     find : String -> Array (String, Json) -> Option Json;
     find = |name, members| (
         range(0, members.@size).loop_iter(none(), |i, _|

@@ -31,26 +31,68 @@ than that loses the places beyond it.
 
 # Reading without a tree
 
-`Json.Decode` reads what you want and leaves the rest of the document unread.
+`Json.Decode` reads what you want and leaves the rest of the document unread. `read_object` hands
+you each member as it meets it, and carries the value you build from one member to the next.
 
 ```
-import Json.Decode::Decoder::{decode, enter_object, is_named, read_member, read_number};
+module Main;
 
-// The number the member `x` of the object at the cursor holds.
-_x : Decoder F64;
-_x = (
-    enter_object;;
-    let span = *read_member;
-    let is_x = *is_named(span, "x");
-    if !is_x { Decoder::fail_expecting("the member x") };
-    number
+import Json.Decode::{
+    Decoder,
+    Decoder::{decode, is_named, read_array, read_bool, read_number, read_object, read_text,
+              read_text_span}
+};
+import Std::{Array, Bool, F64, IO, String, Array::{push_back, @}, IO::println,
+             Monad::pure, Result::as_ok, ToString::to_string};
+
+type Point = struct { x : F64, y : F64 };
+type Shape = struct { name : String, points : Array Point, closed : Bool };
+
+read_point : Decoder Point;
+read_point = read_object(Point { x : 0.0, y : 0.0 }, |name, point|
+    if *is_named(name, "x") { let v = *read_number; pure $ point.set_x(v) };
+    if *is_named(name, "y") { let v = *read_number; pure $ point.set_y(v) };
+    pure $ point
 );
 
-let value = *_x.decode("{\"x\": 1.5}");   // ok(1.5)
+read_shape : Decoder Shape;
+read_shape = read_object(Shape { name : "", points : [], closed : false }, |name, shape|
+    if *is_named(name, "name") {
+        let span = *read_text_span;
+        let text = *read_text(span);
+        pure $ shape.set_name(text)
+    };
+    if *is_named(name, "points") {
+        let points = *read_array([], |points| let p = *read_point; pure $ points.push_back(p));
+        pure $ shape.set_points(points)
+    };
+    if *is_named(name, "closed") { let b = *read_bool; pure $ shape.set_closed(b) };
+    pure $ shape
+);
+
+main : IO ();
+main = (
+    let text = "{ \"name\" : \"tri\", \"points\" : [ {\"x\":1.0,\"y\":2.0} ], \"closed\" : true }";
+    let shape = read_shape.decode(text).as_ok;
+    println(shape.@points.@(0).@x.to_string)   // 1.0
+);
 ```
 
-A reading never goes back, which is what a JSON document allows: the byte the cursor stands on
-says what comes next.
+Three things the reading does for you.
+
+- **A member you say nothing about is passed over.** The last `pure $ shape` answers for every name
+  the reading does not know, and the value standing there is skipped.
+- **The members may come in any order**, and a name the document does not carry simply leaves your
+  starting value where it was.
+- **White space is never yours to skip.** Every reading takes the space in front of it.
+
+`read_number` answers with an `F64`, `read_bool` with a `Bool`, and `read_text_span` with where the
+text stands, which `read_text` turns into a `String` with its escapes resolved. `skip_value` passes
+over a value you want to reach past deliberately, and `read_member`, `read_separator`, `took` and
+`take` are there for a document whose shape the two combinators do not fit.
+
+A reading never goes back, which is what a JSON document allows: the byte the cursor stands on says
+what comes next.
 
 # Numbers
 
