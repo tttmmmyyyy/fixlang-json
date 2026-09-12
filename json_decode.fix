@@ -182,7 +182,7 @@ namespace Decoder {
     skip_space = Decoder { _run : |c|
         let size = c.@_size;
         let bytes = c.@_bytes;
-        let at = loop((c.@_at), |at|
+        let at = loop(c.@_at, |at|
             if at >= size { break $ at };
             let byte = bytes.@(at);
             if byte == ' ' || byte == '\t' || byte == '\n' || byte == '\r' { continue $ at + 1 };
@@ -251,7 +251,7 @@ namespace Decoder {
         let name = name.get_bytes;
         let size = name.@size - 1;
         if span.to - span.from != size { ok $ (false, c) };
-        let same = loop((0), |i|
+        let same = loop(0, |i|
             if i == size { break $ true };
             if bytes.@(span.from + i) != name.@(i) { break $ false };
             continue $ i + 1
@@ -278,7 +278,7 @@ namespace Decoder {
         let size = c.@_size;
         let bytes = c.@_bytes;
         let at = c.@_at;
-        let end = loop((at), |i|
+        let end = loop(at, |i|
             if i >= size { break $ i };
             let byte = bytes.@(i);
             let carries = ('0' <= byte && byte <= '9') || byte == '-' || byte == '+' || byte == '.'
@@ -308,7 +308,7 @@ namespace Decoder {
         let size = c.@_size;
         let bytes = c.@_bytes;
         let at = c.@_at;
-        let end = loop((at), |i|
+        let end = loop(at, |i|
             if i >= size { break $ i };
             let byte = bytes.@(i);
             if byte == ',' || byte == '}' || byte == ']' || byte == ' ' || byte == '\t'

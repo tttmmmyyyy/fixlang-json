@@ -48,7 +48,7 @@ namespace Json {
     find : String -> Array (String, Json) -> Option Json;
     find = |name, members| (
         let size = members.@size;
-        loop((0), |i|
+        loop(0, |i|
             if i == size { break $ none() };
             let member = members.@(i);
             if member.@0 == name { break $ some(member.@1) };
@@ -87,7 +87,7 @@ namespace Read {
     _skip_space : Array U8 -> I64 -> I64;
     _skip_space = |bytes, at| (
         let size = bytes.@size;
-        loop((at), |at|
+        loop(at, |at|
             if at >= size { break $ at };
             let c = bytes.@(at);
             if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
@@ -240,7 +240,7 @@ namespace Read {
     _number : Array U8 -> I64 -> Result ErrMsg (Json, I64);
     _number = |bytes, at| (
         let size = bytes.@size;
-        let end = loop((at), |i|
+        let end = loop(at, |i|
             if i >= size { break $ i };
             let c = bytes.@(i);
             let carries = ('0' <= c && c <= '9') || c == '-' || c == '+' || c == '.'
@@ -627,7 +627,7 @@ namespace Number {
     // * `value` - The number to write, which is not negative.
     _append_whole : Array U8 -> I64 -> Array U8;
     _append_whole = |buffer, value| (
-        let top = loop((1), |place|
+        let top = loop(1, |place|
             if value / place < 10 { break $ place };
             continue $ place * 10
         );
@@ -662,13 +662,13 @@ namespace Number {
         let text = value.to_string_precision(precision);
         let bytes = text.get_bytes;
         let size = bytes.@size - 1;
-        let point = loop((0), |i|
+        let point = loop(0, |i|
             if i == size { break $ -1 };
             if bytes.@(i) == '.' { break $ i };
             continue $ i + 1
         );
         let end = if point < 0 { size } else {
-            loop((size - 1), |i|
+            loop(size - 1, |i|
                 if i < 1 { break $ i + 1 };
                 if bytes.@(i) == '0' { continue $ i - 1 };
                 if bytes.@(i) == '.' { break $ i };
