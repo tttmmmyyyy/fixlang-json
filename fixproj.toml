@@ -1,0 +1,14 @@
+[general]
+name = "json"
+version = "0.1.0"
+authors = ["tttmmmyyyy"]
+description = "Reads and writes JSON documents, either into a tree or straight into the values a program wants."
+
+[build]
+files = [
+    "json.fix",
+    "json_decode.fix",
+]
+
+[build.test]
+files = ["test.fix"]

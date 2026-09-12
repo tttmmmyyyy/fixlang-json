@@ -1,0 +1,246 @@
+module Test;
+
+import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, find, null, number, object, string}, Number::{append, parse}, read, write};
+import Json.Decode::{Decoder, Span, Decoder::{decode, expect, expected, member, name_bytes, named, named_as_written, number, text}};
+import Std::{
+    loop, Array, Bool, ErrMsg, F64, I64, IO, Option, Result, String, U8,
+    Array::{empty, get_sub, push_back, to_iter, @, @size}, Debug::{assert, assert_eq},
+    F64::to_string_precision, FromBytes::from_bytes, FromString::from_string,
+    Iterator::{filter, fold, fold_m, range}, LoopState::{break, continue}, Monad::pure,
+    Option::{as_some, is_none, is_some}, Result::{as_err, as_ok, is_err, is_ok},
+    String::get_bytes, ToF64::f64, ToI64::i64, ToString::to_string, ToU8::u8, Tuple2::@0,
+    IO::println
+};
+
+// The document the round trip is taken over, holding one of every kind of value.
+_document : Json;
+_document = Json::object([
+    ("nothing", Json::null()),
+    ("yes", Json::bool(true)),
+    ("no", Json::bool(false)),
+    ("count", Json::number(-17.0)),
+    ("ratio", Json::number(0.25)),
+    ("name", Json::string("a point")),
+    ("quoted", Json::string("he said \"go\"\n\tand \\ left")),
+    ("empty_array", Json::array([])),
+    ("empty_object", Json::object([])),
+    ("nested", Json::array([
+        Json::object([("x", Json::number(1.5)), ("y", Json::number(-2.25))]),
+        Json::object([("x", Json::number(0.0)), ("y", Json::number(100.0))])
+    ]))
+]);
+
+// Writing a document and reading it back gives the value that was written.
+test_round_trip : IO ();
+test_round_trip = (
+    let text = Json::write(8_U8, _document);
+    let back = Json::read(text);
+    assert_eq(|_| "read " + text, back.is_ok, true);;
+    assert_eq(|_| "round trip over " + text, back.as_ok == _document, true)
+);
+
+// The text a document is written as.
+test_write : IO ();
+test_write = (
+    [
+        (Json::null(), "null"),
+        (Json::bool(true), "true"),
+        (Json::bool(false), "false"),
+        (Json::number(0.0), "0"),
+        (Json::number(1.0), "1"),
+        (Json::number(-1.5), "-1.5"),
+        (Json::number(0.00000001), "0.00000001"),
+        (Json::string(""), "\"\""),
+        (Json::string("a/b"), "\"a/b\""),
+        (Json::string("\"\\\n\r\t"), "\"\\\"\\\\\\n\\r\\t\""),
+        (Json::array([]), "[]"),
+        (Json::array([Json::number(1.0), Json::null()]), "[1,null]"),
+        (Json::object([]), "{}"),
+        (Json::object([("a", Json::number(1.0)), ("b", Json::number(2.0))]), "{\"a\":1,\"b\":2}")
+    ].to_iter.fold_m((), |(value, expected), _|
+        assert_eq(|_| "write " + expected, Json::write(8_U8, value), expected)
+    )
+);
+
+// The value a document is read as, over texts the grammar accepts.
+test_read : IO ();
+test_read = (
+    [
+        ("null", Json::null()),
+        ("  true  ", Json::bool(true)),
+        ("false", Json::bool(false)),
+        ("0", Json::number(0.0)),
+        ("-1.5e2", Json::number(-150.0)),
+        ("1E+2", Json::number(100.0)),
+        ("\"\"", Json::string("")),
+        ("\"\\u0041\\u00e9\\u3042\"", Json::string("Aéあ")),
+        ("\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"", Json::string("\"\\/\u0008\u000c\n\r\t")),
+        ("[]", Json::array([])),
+        ("[ 1 , 2 ]", Json::array([Json::number(1.0), Json::number(2.0)])),
+        ("{}", Json::object([])),
+        ("{ \"a\" : 1 }", Json::object([("a", Json::number(1.0))])),
+        ("{\"a\":1,\"a\":2}", Json::object([("a", Json::number(1.0)), ("a", Json::number(2.0))]))
+    ].to_iter.fold_m((), |(text, expected), _|
+        let value = Json::read(text);
+        assert_eq(|_| "read " + text, value.is_ok, true);;
+        assert_eq(|_| "read " + text, value.as_ok == expected, true)
+    )
+);
+
+// A text the grammar does not accept answers with an error rather than a value.
+test_read_rejects : IO ();
+test_read_rejects = (
+    ["", "  ", "tru", "[1", "[1,]", "{\"a\"}", "{\"a\":}", "{a:1}", "\"no close",
+     "1 2", "[1] x", "\"\\q\"", "\"\\u00\""].to_iter.fold_m((), |text, _|
+        assert_eq(|_| "reject " + text, Json::read(text).is_err, true)
+    )
+);
+
+// `find` answers with the first member of that name, and with none where there is no such member.
+test_find : IO ();
+test_find = (
+    let members = Json::read("{\"a\":1,\"b\":2,\"a\":3}").as_ok.as_object;
+    assert_eq(|_| "find a", members.Json::find("a").as_some.as_number, 1.0);;
+    assert_eq(|_| "find b", members.Json::find("b").as_some.as_number, 2.0);;
+    assert_eq(|_| "find c", members.Json::find("c").is_none, true)
+);
+
+// The reading that carries the position through a monad.
+test_decode : IO ();
+test_decode = (
+    let x_of = |compare, text| (
+        let reading = (
+            expect('{', "an object");;
+            let span = *member;
+            let found = *compare(span, name_bytes("x"));
+            if !found { Decoder::expected("the member x") };
+            Decoder::number
+        );
+        reading.decode(text)
+    );
+    assert_eq(|_| "plain, resolved", x_of(named, "{\"x\":1.5}").as_ok, 1.5);;
+    assert_eq(|_| "plain, as written", x_of(named_as_written, "{\"x\":1.5}").as_ok, 1.5);;
+    // A name written as an escape is the name it spells, which only `named` resolves.
+    assert_eq(|_| "escaped, resolved", x_of(named, "{\"\\u0078\":1.5}").as_ok, 1.5);;
+    assert_eq(|_| "escaped, as written", x_of(named_as_written, "{\"\\u0078\":1.5}").is_err, true);;
+    let name_of = (expect('{', "an object");; let span = *member; text(span));
+    assert_eq(|_| "text of an escaped name", name_of.decode("{\"\\u0078\":1}").as_ok, "x");;
+    assert_eq(|_| "a reading that fails", Decoder::number.decode("x").is_err, true)
+);
+
+// The state of the generator the differential tests draw their numbers from.
+_seeded : I64 -> I64;
+_seeded = |seed| (seed * 1103515245 + 12345) % 2147483648;
+
+// A double made of the low bytes of `seed`, which carries every exponent the pattern can name.
+//
+// # Parameters
+// * `seed` - The state to make the double out of.
+_patterned : I64 -> F64;
+_patterned = |seed| (
+    let bytes = range(0, 8).fold(Array::empty(8), |i, bytes|
+        bytes.push_back((seed / (1 + i * 37) % 256).u8)
+    );
+    from_bytes(bytes).as_ok
+);
+
+// Whether a double is one the runtime's own conversion reads back, which leaves out the numbers
+// that are no number at all, that stand beyond what a double names, and that are subnormal.
+//
+// # Parameters
+// * `value` - The number to test.
+_ordinary : F64 -> Bool;
+_ordinary = |value| (
+    if value != value { false };
+    if !(value > -1.0e308 && value < 1.0e308) { false };
+    value == 0.0 || value > 2.3e-308 || value < -2.3e-308
+);
+
+// The text the runtime writes a number as, with the zeros that trail it dropped, which is what the
+// library's own writing is held to.
+//
+// # Parameters
+// * `precision` - How many places the number is written to.
+// * `value` - The number to write.
+_by_runtime : U8 -> F64 -> String;
+_by_runtime = |precision, value| (
+    let bytes = value.to_string_precision(precision).get_bytes;
+    let size = bytes.@size - 1;
+    let point = loop((0), |i|
+        if i == size { break $ -1 };
+        if bytes.@(i) == '.' { break $ i };
+        continue $ i + 1
+    );
+    let end = if point < 0 { size } else {
+        loop((size - 1), |i|
+            if i < 1 { break $ i + 1 };
+            if bytes.@(i) == '0' { continue $ i - 1 };
+            if bytes.@(i) == '.' { break $ i };
+            break $ i + 1
+        )
+    };
+    bytes.get_sub(0, end).push_back(0_U8).from_bytes.as_ok
+);
+
+// Every number the library writes is written as the runtime writes it.
+test_write_numbers : IO ();
+test_write_numbers = (
+    let fixed = [0.0, 1.0, -1.0, 0.5, -0.5, 0.1, 1.0e-8, 1.0e-9, 123456789.12345678,
+                 4503599627370495.0, 4503599627370496.0, 1.0e15, 1.0e16, 1.0 / 3.0, 1.0e300,
+                 9.99999999, -0.00000001, 2.2250738585072014e-308];
+    let drawn = range(0, 4000).fold(([], 1), |_, (values, seed)|
+        let seed = _seeded(seed);
+        let values = values.push_back(seed.f64 / 21474836.48);
+        let seed = _seeded(seed);
+        let values = values.push_back((seed % 100000000).f64 / 100000000.0);
+        let seed = _seeded(seed);
+        (values.push_back(_patterned(seed)), seed)
+    ).@0;
+    (fixed + drawn).to_iter.filter(_ordinary).fold_m((), |value, _|
+        range(0, 4).fold_m((), |i, _|
+            let precision = (i * 5 + 2).u8;
+            let text = Json::write(precision, Json::number(value));
+            assert_eq(|_| "write " + value.to_string_precision(17_U8), text,
+                      _by_runtime(precision, value))
+        )
+    )
+);
+
+// Every number the library reads is read as the runtime reads it.
+test_read_numbers : IO ();
+test_read_numbers = (
+    let fixed = ["0", "-0", "0.0", "1", "1.0", "1e10", "1E10", "1e+10", "1e-10", "1.5e-7",
+                 "123e+5", "0.0001e10", "9007199254740992", "9007199254740993", "0.1", "0.3",
+                 "1e22", "1e23", "1e-22", "12345678901234567890", "1234567890123456789012345",
+                 "1e308", "1e-307", "0.30000000000000004"];
+    let drawn = range(0, 4000).fold(([], 7), |_, (texts, seed)|
+        let seed = _seeded(seed);
+        let texts = texts.push_back((seed % 100000000).to_string + "." + (seed % 99999999).to_string);
+        let seed = _seeded(seed);
+        let texts = texts.push_back(seed.to_string + "e" + (seed % 40 - 20).to_string);
+        let seed = _seeded(seed);
+        (texts.push_back("-" + (seed % 1000000).to_string + "." + (seed % 1000).to_string), seed)
+    ).@0;
+    (fixed + drawn).to_iter.fold_m((), |text, _|
+        let bytes = text.get_bytes;
+        let ours = Json::Number::parse(bytes, 0, bytes.@size - 1);
+        let runtime : Result ErrMsg F64 = from_string(text);
+        assert_eq(|_| "read " + text + ": one answers and the other does not",
+                  ours.is_ok, runtime.is_ok);;
+        if ours.is_err { pure() };
+        assert_eq(|_| "read " + text, ours.as_ok == runtime.as_ok, true)
+    )
+);
+
+test : IO ();
+test = (
+    test_round_trip;;
+    test_write;;
+    test_read;;
+    test_read_rejects;;
+    test_find;;
+    test_decode;;
+    test_write_numbers;;
+    test_read_numbers;;
+    println("All tests passed.")
+);
