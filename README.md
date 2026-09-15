@@ -26,11 +26,11 @@ let document = object([
     ("name", string("a point")),
     ("at", array([number(1.5), number(-2.25)]))
 ]);
-let text = write(8_U8, document);   // {"name":"a point","at":[1.5,-2.25]}
+let text = write(document);   // {"name":"a point","at":[1.5,-2.25]}
 ```
 
-`write` takes how many places after the point a number is written to. A number carrying further
-than that loses the places beyond it.
+A number is written in the shortest decimal form that reads back as itself, so reading the text
+answers with the tree that was written.
 
 # Reading without a tree
 

@@ -33,7 +33,7 @@ _document = Json::object([
 // Writing a document and reading it back gives the value that was written.
 test_round_trip : IO ();
 test_round_trip = (
-    let text = Json::write(8_U8, _document);
+    let text = Json::write(_document);
     let back = Json::read(text);
     assert_eq(|_| "read " + text, back.is_ok, true);;
     assert_eq(|_| "round trip over " + text, back.as_ok == _document, true)
@@ -46,19 +46,22 @@ test_write = (
         (Json::null(), "null"),
         (Json::bool(true), "true"),
         (Json::bool(false), "false"),
-        (Json::number(0.0), "0"),
-        (Json::number(1.0), "1"),
+        (Json::number(0.0), "0.0"),
+        (Json::number(1.0), "1.0"),
+        (Json::number(1.0e21), "1e21"),
+        (Json::number(1.0e-7), "1e-7"),
         (Json::number(-1.5), "-1.5"),
-        (Json::number(0.00000001), "0.00000001"),
+        (Json::number(0.00000001), "1e-8"),
+        (Json::number(0.00001), "0.00001"),
         (Json::string(""), "\"\""),
         (Json::string("a/b"), "\"a/b\""),
         (Json::string("\"\\\n\r\t"), "\"\\\"\\\\\\n\\r\\t\""),
         (Json::array([]), "[]"),
-        (Json::array([Json::number(1.0), Json::null()]), "[1,null]"),
+        (Json::array([Json::number(1.0), Json::null()]), "[1.0,null]"),
         (Json::object([]), "{}"),
-        (Json::object([("a", Json::number(1.0)), ("b", Json::number(2.0))]), "{\"a\":1,\"b\":2}")
+        (Json::object([("a", Json::number(1.0)), ("b", Json::number(2.0))]), "{\"a\":1.0,\"b\":2.0}")
     ].to_iter.fold_m((), |(value, expected), _|
-        assert_eq(|_| "write " + expected, Json::write(8_U8, value), expected)
+        assert_eq(|_| "write " + expected, Json::write(value), expected)
     )
 );
 
@@ -144,45 +147,14 @@ _patterned = |seed| (
     from_bytes(bytes).as_ok
 );
 
-// Whether a double is one the runtime's own conversion reads back, which leaves out the numbers
-// that are no number at all, that stand beyond what a double names, and that are subnormal.
+// Whether `value` is a number JSON can write: JSON spells no infinity and no not-a-number.
 //
 // # Parameters
 // * `value` - The number to test.
-_ordinary : F64 -> Bool;
-_ordinary = |value| (
-    if value != value { false };
-    if !(value > -1.0e308 && value < 1.0e308) { false };
-    value == 0.0 || value > 2.3e-308 || value < -2.3e-308
-);
+_finite : F64 -> Bool;
+_finite = |value| value == value && value > -1.0e308 && value < 1.0e308;
 
-// The text the runtime writes a number as, with the zeros that trail it dropped, which is what the
-// library's own writing is held to.
-//
-// # Parameters
-// * `precision` - How many places the number is written to.
-// * `value` - The number to write.
-_by_runtime : U8 -> F64 -> String;
-_by_runtime = |precision, value| (
-    let bytes = value.to_string_precision(precision).get_bytes;
-    let size = bytes.@size - 1;
-    let point = loop(0, |i|
-        if i == size { break $ -1 };
-        if bytes.@(i) == '.' { break $ i };
-        continue $ i + 1
-    );
-    let end = if point < 0 { size } else {
-        loop(size - 1, |i|
-            if i < 1 { break $ i + 1 };
-            if bytes.@(i) == '0' { continue $ i - 1 };
-            if bytes.@(i) == '.' { break $ i };
-            break $ i + 1
-        )
-    };
-    bytes.get_sub(0, end).push_back(0_U8).from_bytes.as_ok
-);
-
-// Every number the library writes is written as the runtime writes it.
+// Every number the library writes reads back as the number that was written.
 test_write_numbers : IO ();
 test_write_numbers = (
     let fixed = [0.0, 1.0, -1.0, 0.5, -0.5, 0.1, 1.0e-8, 1.0e-9, 123456789.12345678,
@@ -196,13 +168,12 @@ test_write_numbers = (
         let seed = _seeded(seed);
         (values.push_back(_patterned(seed)), seed)
     ).@0;
-    (fixed + drawn).to_iter.filter(_ordinary).fold_m((), |value, _|
-        range(0, 4).fold_m((), |i, _|
-            let precision = (i * 5 + 2).u8;
-            let text = Json::write(precision, Json::number(value));
-            assert_eq(|_| "write " + value.to_string_precision(17_U8), text,
-                      _by_runtime(precision, value))
-        )
+    (fixed + drawn).to_iter.filter(_finite).fold_m((), |value, _|
+        let text = Json::write(Json::number(value));
+        let back = Json::read(text);
+        assert_eq(|_| "read back " + text, back.is_ok, true);;
+        assert_eq(|_| "round trip over " + value.to_string_precision(17_U8) + " written as " + text,
+                  back.as_ok.as_number, value)
     )
 );
 

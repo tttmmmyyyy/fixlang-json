@@ -25,20 +25,13 @@ behind its value.
 
 #### write
 
-Type: `Std::U8 -> Json::Json -> Std::String`
+Type: `Json::Json -> Std::String`
 
-Writes a document. Every number is written to `precision` places after the point, with the zeros
-that trail it dropped.
-
-A number carries further than `precision` places whenever it is not a multiple of
-`10^-precision`, and those places are lost: `1.0 / 3.0` written to eight places reads back as
-`0.33333333`, which is a different number. Reading a document back gives the numbers the text
-writes, so a program that needs its own numbers back has to write them at a precision that holds
-them.
+Writes a document. Every number is written in the shortest decimal form that reads back as
+itself, so reading the text answers with the tree that was written.
 
 ##### Parameters
 
-* `precision` - How many places a number is written to.
 * `document` - The tree to write.
 
 ### namespace Json::Object

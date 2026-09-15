@@ -4,7 +4,7 @@ module Json;
 
 import Std::{
     loop, Array, Bool, Eq, ErrMsg, F64, I64, Option, Result, String, U8, 
-    Array::{@, @size, empty, get_sub, push_back}, F64::to_string_precision, FromBytes::from_bytes, 
+    Array::{@, @size, empty, get_sub, push_back}, FromBytes::from_bytes, 
     FromString::from_string, Iterator::{fold, loop_iter, range}, LoopState::{break, continue}, 
     Option::{as_some, is_some, none, some}, Result::{as_err, as_ok, err, is_err, ok}, String::get_bytes, 
     ToF64::f64, ToI64::i64, ToString::to_string, ToU8::u8, Tuple2::{@0, @1}
@@ -348,21 +348,14 @@ namespace Text {
     );
 }
 
-// Writes a document. Every number is written to `precision` places after the point, with the zeros
-// that trail it dropped.
-//
-// A number carries further than `precision` places whenever it is not a multiple of
-// `10^-precision`, and those places are lost: `1.0 / 3.0` written to eight places reads back as
-// `0.33333333`, which is a different number. Reading a document back gives the numbers the text
-// writes, so a program that needs its own numbers back has to write them at a precision that holds
-// them.
+// Writes a document. Every number is written in the shortest decimal form that reads back as
+// itself, so reading the text answers with the tree that was written.
 //
 // # Parameters
-// * `precision` - How many places a number is written to.
 // * `document` - The tree to write.
-write : U8 -> Json -> String;
-write = |precision, document| (
-    Write::_value(precision, Array::empty(1024), document)._string_of
+write : Json -> String;
+write = |document| (
+    Write::_value(Array::empty(1024), document)._string_of
 );
 
 namespace Write {
@@ -384,36 +377,34 @@ namespace Write {
     // Appends the text of `value` to `buffer`.
     //
     // # Parameters
-    // * `precision` - How many places a number is written to.
     // * `buffer` - The buffer to append to.
     // * `value` - The value to write.
-    _value : U8 -> Array U8 -> Json -> Array U8;
-    _value = |precision, buffer, value| (
+    _value : Array U8 -> Json -> Array U8;
+    _value = |buffer, value| (
         match value {
             null() => buffer._append("null"),
             bool(yes) => if yes { buffer._append("true") } else { buffer._append("false") },
-            number(x) => Number::_write(precision, buffer, x),
+            number(x) => Number::_write(buffer, x),
             string(text) => Write::_string(buffer, text),
-            object(members) => Write::_object(precision, buffer, members),
-            array(elements) => Write::_array(precision, buffer, elements)
+            object(members) => Write::_object(buffer, members),
+            array(elements) => Write::_array(buffer, elements)
         }
     );
 
     // Appends the members of an object to `buffer`, in the order they stand in.
     //
     // # Parameters
-    // * `precision` - How many places a number is written to.
     // * `buffer` - The buffer to append to.
     // * `members` - The members to write.
-    _object : U8 -> Array U8 -> Object -> Array U8;
-    _object = |precision, buffer, members| (
+    _object : Array U8 -> Object -> Array U8;
+    _object = |buffer, members| (
         let size = members.@size;
         let buffer = buffer.push_back('{');
         let buffer = range(0, size).fold(buffer, |i, buffer|
             let member = members.@(i);
             let buffer = if i == 0 { buffer } else { buffer.push_back(',') };
             let buffer = Write::_string(buffer, member.@0).push_back(':');
-            Write::_value(precision, buffer, member.@1)
+            Write::_value(buffer, member.@1)
         );
         buffer.push_back('}')
     );
@@ -421,16 +412,15 @@ namespace Write {
     // Appends the elements of an array to `buffer`.
     //
     // # Parameters
-    // * `precision` - How many places a number is written to.
     // * `buffer` - The buffer to append to.
     // * `elements` - The elements to write.
-    _array : U8 -> Array U8 -> Array Json -> Array U8;
-    _array = |precision, buffer, elements| (
+    _array : Array U8 -> Array Json -> Array U8;
+    _array = |buffer, elements| (
         let size = elements.@size;
         let buffer = buffer.push_back('[');
         let buffer = range(0, size).fold(buffer, |i, buffer|
             let buffer = if i == 0 { buffer } else { buffer.push_back(',') };
-            Write::_value(precision, buffer, elements.@(i))
+            Write::_value(buffer, elements.@(i))
         );
         buffer.push_back(']')
     );
@@ -483,30 +473,13 @@ namespace Number {
         from_string(bytes.get_sub(at, end)._string_of)
     );
 
-    // Appends `value` to `buffer`, written to `precision` places after the point with the zeros that
-    // trail it dropped, and the point dropped with them where nothing is left behind it.
+    // Appends `value` to `buffer`, in the shortest decimal form that reads back as itself.
     //
     // # Parameters
-    // * `precision` - How many places the number is written to.
     // * `buffer` - The buffer to append to.
     // * `value` - The number to write.
-    _write : U8 -> Array U8 -> F64 -> Array U8;
-    _write = |precision, buffer, value| (
-        let places = precision.i64;
-        if places >= _powers_of_ten.@size { _append_by_runtime(precision, buffer, value) };
-        let unit = _powers_of_ten.@(places);
-        let scale = unit.f64;
-        let scaled = value * scale;
-        // A number that is not below the bound, and one that is not a number at all, fail this test.
-        if !(scaled > -_whole_bound && scaled < _whole_bound) {
-            _append_by_runtime(precision, buffer, value)
-        };
-        let whole = (if scaled < 0.0 { scaled - 0.5 } else { scaled + 0.5 }).i64;
-        // The digits of the whole number are the number's own digits at this precision exactly when
-        // scaling it back answers with the number itself.
-        if whole.f64 / scale != value { _append_by_runtime(precision, buffer, value) };
-        _append_digits(buffer, unit, value._is_negative, whole)
-    );
+    _write : Array U8 -> F64 -> Array U8;
+    _write = |buffer, value| buffer._append(value.to_string);
 
     // The number the bytes from `at` to `end` write, when they write one whose nearest double is a
     // whole number below `_mantissa_bound` scaled by a power of ten that a double holds exactly.
@@ -575,19 +548,6 @@ namespace Number {
     _mantissa_bound : I64;
     _mantissa_bound = 9007199254740992;
 
-    // The bound below which the neighbours of a number stand more than one apart, so that rounding it
-    // names one whole number and no other number rounds to the same one.
-    _whole_bound : F64;
-    _whole_bound = 4503599627370496.0;
-
-    // The powers of ten that fit in an `I64`.
-    _powers_of_ten : Array I64;
-    _powers_of_ten = [
-        1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000,
-        10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000,
-        1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000
-    ];
-
     // The powers of ten a double holds exactly.
     _exact_powers_of_ten : Array F64;
     _exact_powers_of_ten = [
@@ -597,96 +557,6 @@ namespace Number {
         10000000000000000000.0, 100000000000000000000.0, 1000000000000000000000.0,
         10000000000000000000000.0
     ];
-
-    // Whether a number is written behind a minus sign, which zero is when it is the negative zero.
-    //
-    // # Parameters
-    // * `value` - The number to test.
-    _is_negative : F64 -> Bool;
-    _is_negative = |value| value < 0.0 || (value == 0.0 && 1.0 / value < 0.0);
-
-    // Appends the digits of `scaled` to `buffer`, with the point placed so that the digits behind it
-    // stand for `1 / unit`, the zeros that trail it dropped, and the point dropped with them where
-    // nothing is left behind it.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `unit` - The power of ten the number was scaled by.
-    // * `negative` - Whether the number is written behind a minus sign.
-    // * `scaled` - The number to write times `unit`.
-    _append_digits : Array U8 -> I64 -> Bool -> I64 -> Array U8;
-    _append_digits = |buffer, unit, negative, scaled| (
-        let buffer = if negative { buffer.push_back('-') } else { buffer };
-        let scaled = if scaled < 0 { -scaled } else { scaled };
-        let buffer = _append_whole(buffer, scaled / unit);
-        let fraction = scaled % unit;
-        if fraction == 0 { buffer };
-        // Dividing the zeros that trail the fraction away shrinks the unit with them, and the unit that
-        // is left says how many places the digits that remain fill.
-        let (fraction, unit) = loop((fraction, unit), |(fraction, unit)|
-            if fraction % 10 == 0 { continue $ (fraction / 10, unit / 10) };
-            break $ (fraction, unit)
-        );
-        _append_places(buffer.push_back('.'), unit / 10, fraction)
-    );
-
-    // Appends `value` to `buffer` as its own digits, of which there is at least one.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `value` - The number to write, which is not negative.
-    _append_whole : Array U8 -> I64 -> Array U8;
-    _append_whole = |buffer, value| (
-        let top = loop(1, |place|
-            if value / place < 10 { break $ place };
-            continue $ place * 10
-        );
-        _append_places(buffer, top, value)
-    );
-
-    // Appends `value` to `buffer` as the digits from the place `top` down to the ones, so that a value
-    // below `top` opens with as many zeros as it leaves places empty.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `top` - The place of the first digit, which is a power of ten.
-    // * `value` - The number to write, which is below ten times `top`.
-    _append_places : Array U8 -> I64 -> I64 -> Array U8;
-    _append_places = |buffer, top, value| (
-        loop((buffer, top), |(buffer, place)|
-            let buffer = buffer.push_back('0' + ((value / place) % 10).u8);
-            if place == 1 { break $ buffer };
-            continue $ (buffer, place / 10)
-        )
-    );
-
-    // Appends a number to `buffer` as the runtime's formatter writes it, with the zeros that trail it
-    // dropped, and the point dropped with them where nothing is left behind it.
-    //
-    // # Parameters
-    // * `precision` - How many places the number is written to.
-    // * `buffer` - The buffer to append to.
-    // * `value` - The number to write.
-    _append_by_runtime : U8 -> Array U8 -> F64 -> Array U8;
-    _append_by_runtime = |precision, buffer, value| (
-        let text = value.to_string_precision(precision);
-        let bytes = text.get_bytes;
-        let size = bytes.@size - 1;
-        let point = loop(0, |i|
-            if i == size { break $ -1 };
-            if bytes.@(i) == '.' { break $ i };
-            continue $ i + 1
-        );
-        let end = if point < 0 { size } else {
-            loop(size - 1, |i|
-                if i < 1 { break $ i + 1 };
-                if bytes.@(i) == '0' { continue $ i - 1 };
-                if bytes.@(i) == '.' { break $ i };
-                break $ i + 1
-            )
-        };
-        range(0, end).fold(buffer, |i, buffer| buffer.push_back(bytes.@(i)))
-    );
 }
 
 // A string made of the given bytes.
