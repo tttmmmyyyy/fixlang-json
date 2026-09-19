@@ -7,7 +7,7 @@ description = "Reads and writes JSON documents, either into a tree or straight i
 [build]
 files = [
     "json.fix",
-    "json_decode.fix",
+    "json_decoder.fix",
 ]
 
 [build.test]

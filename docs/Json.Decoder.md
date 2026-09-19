@@ -1,4 +1,4 @@
-# Json.Decode
+# Json.Decoder
 
 Defined in json@0.5.0
 
@@ -31,11 +31,11 @@ A reading that fails answers with a message naming what the grammar expected and
 
 ## Values
 
-### namespace Json.Decode
+### namespace Json.Decoder
 
 #### make_cursor
 
-Type: `Std::String -> Json.Decode::Cursor`
+Type: `Std::String -> Json.Decoder::Cursor`
 
 A cursor standing at the first byte of a document.
 
@@ -45,7 +45,7 @@ A cursor standing at the first byte of a document.
 
 #### make_span
 
-Type: `Std::I64 -> Std::I64 -> Std::Bool -> Json.Decode::Span`
+Type: `Std::I64 -> Std::I64 -> Std::Bool -> Json.Decoder::Span`
 
 The span of the bytes from `from` up to `to`, which `escaped` says whether an escape stands
 among.
@@ -56,17 +56,17 @@ among.
 * `to` - The position one past its last byte.
 * `escaped` - Whether a backslash stands between the two.
 
-### namespace Json.Decode::Decoder
+### namespace Json.Decoder::Decoder
 
 #### advance
 
-Type: `Json.Decode::Decoder ()`
+Type: `Json.Decoder::Decoder ()`
 
 Moves the cursor one byte on.
 
 #### decode
 
-Type: `Std::String -> Json.Decode::Decoder a -> Std::Result Std::ErrMsg a`
+Type: `Std::String -> Json.Decoder::Decoder a -> Std::Result Std::ErrMsg a`
 
 Runs a reading over a whole document, and answers with what it read.
 
@@ -84,19 +84,19 @@ read_number.decode("x")     // err("expected a number at 0")
 
 #### enter_array
 
-Type: `Json.Decode::Decoder ()`
+Type: `Json.Decoder::Decoder ()`
 
 Takes the bracket an array opens with, leaving the cursor on its first element.
 
 #### enter_object
 
-Type: `Json.Decode::Decoder ()`
+Type: `Json.Decoder::Decoder ()`
 
 Takes the brace an object opens with, leaving the cursor on its first member.
 
 #### fail_expecting
 
-Type: `Std::String -> Json.Decode::Decoder a`
+Type: `Std::String -> Json.Decoder::Decoder a`
 
 A reading that fails, saying what the grammar expected and where.
 
@@ -106,7 +106,7 @@ A reading that fails, saying what the grammar expected and where.
 
 #### is_at
 
-Type: `Std::U8 -> Json.Decode::Decoder Std::Bool`
+Type: `Std::U8 -> Json.Decoder::Decoder Std::Bool`
 
 Whether the byte at the cursor is `byte`, which is false where the document has ended.
 
@@ -116,13 +116,13 @@ Whether the byte at the cursor is `byte`, which is false where the document has 
 
 #### is_at_end
 
-Type: `Json.Decode::Decoder Std::Bool`
+Type: `Json.Decoder::Decoder Std::Bool`
 
 Whether the cursor has reached the end of the document.
 
 #### is_named
 
-Type: `Json.Decode::Span -> Std::String -> Json.Decode::Decoder Std::Bool`
+Type: `Json.Decoder::Span -> Std::String -> Json.Decoder::Decoder Std::Bool`
 
 Whether the text of `span` is `name`.
 
@@ -136,7 +136,7 @@ A span that carries an escape has it resolved first, so a name written `"\\u0078
 
 #### is_named_as_written
 
-Type: `Json.Decode::Span -> Std::String -> Json.Decode::Decoder Std::Bool`
+Type: `Json.Decoder::Span -> Std::String -> Json.Decoder::Decoder Std::Bool`
 
 Whether the bytes `span` stands on are `name`, taken as the document writes them.
 
@@ -150,7 +150,7 @@ An escape among them stands as the escape, so a name written `"\\u0078"` does no
 
 #### read_array
 
-Type: `s -> (s -> Json.Decode::Decoder s) -> Json.Decode::Decoder s`
+Type: `s -> (s -> Json.Decoder::Decoder s) -> Json.Decoder::Decoder s`
 
 Reads the array the cursor stands on, handing each element to `element` and carrying the
 state it answers with to the next one.
@@ -174,31 +174,31 @@ read_numbers.decode("[]")                // ok([])
 
 #### read_bool
 
-Type: `Json.Decode::Decoder Std::Bool`
+Type: `Json.Decoder::Decoder Std::Bool`
 
 Reads the `true` or `false` the cursor stands on.
 
 #### read_member
 
-Type: `Json.Decode::Decoder Json.Decode::Span`
+Type: `Json.Decoder::Decoder Json.Decoder::Span`
 
 Reads a member's name and the colon behind it, and answers with where the name stands.
 
 #### read_null
 
-Type: `Json.Decode::Decoder ()`
+Type: `Json.Decoder::Decoder ()`
 
 Reads the `null` the cursor stands on.
 
 #### read_number
 
-Type: `Json.Decode::Decoder Std::F64`
+Type: `Json.Decoder::Decoder Std::F64`
 
 Reads a number, which runs to the first byte that no number can carry.
 
 #### read_object
 
-Type: `s -> (Json.Decode::Span -> s -> Json.Decode::Decoder s) -> Json.Decode::Decoder s`
+Type: `s -> (Json.Decoder::Span -> s -> Json.Decoder::Decoder s) -> Json.Decoder::Decoder s`
 
 Reads the object the cursor stands on, handing each member to `member` and carrying the
 state it answers with to the next one.
@@ -230,7 +230,7 @@ read_point.decode("{ \"y\" : 2.0, \"z\" : 9.0, \"x\" : 1.0 }")
 
 #### read_separator
 
-Type: `Std::U8 -> Json.Decode::Decoder Std::Bool`
+Type: `Std::U8 -> Json.Decoder::Decoder Std::Bool`
 
 Reads the byte that closes a member list or separates it from the next member, and answers
 with whether another member follows.
@@ -241,7 +241,7 @@ with whether another member follows.
 
 #### read_text
 
-Type: `Json.Decode::Span -> Json.Decode::Decoder Std::String`
+Type: `Json.Decoder::Span -> Json.Decoder::Decoder Std::String`
 
 The text the span stands for, with every escape resolved.
 
@@ -268,7 +268,7 @@ read_name.decode("{\"x\":1.5}")      // ok("x")
 
 #### read_text_span
 
-Type: `Json.Decode::Decoder Json.Decode::Span`
+Type: `Json.Decoder::Decoder Json.Decoder::Span`
 
 Reads the string the cursor stands on, and answers with where its text stands.
 
@@ -277,7 +277,7 @@ whether one stands inside it.
 
 #### run
 
-Type: `Json.Decode::Cursor -> Json.Decode::Decoder a -> Std::Result Std::ErrMsg (a, Json.Decode::Cursor)`
+Type: `Json.Decoder::Cursor -> Json.Decoder::Decoder a -> Std::Result Std::ErrMsg (a, Json.Decoder::Cursor)`
 
 Runs a reading over a cursor, and answers with what it read and the cursor behind it.
 
@@ -288,13 +288,13 @@ Runs a reading over a cursor, and answers with what it read and the cursor behin
 
 #### skip_value
 
-Type: `Json.Decode::Decoder ()`
+Type: `Json.Decoder::Decoder ()`
 
 Moves the cursor past the value it stands on, building nothing for it.
 
 #### take
 
-Type: `Std::U8 -> Std::String -> Json.Decode::Decoder ()`
+Type: `Std::U8 -> Std::String -> Json.Decoder::Decoder ()`
 
 Takes the byte `byte`, failing where the document holds something else.
 
@@ -305,7 +305,7 @@ Takes the byte `byte`, failing where the document holds something else.
 
 #### took
 
-Type: `Std::U8 -> Json.Decode::Decoder Std::Bool`
+Type: `Std::U8 -> Json.Decoder::Decoder Std::Bool`
 
 Takes the byte `byte` where the cursor stands on it, and answers whether it did. Where the
 cursor stands on another byte, or the document has ended, it stays where it is.
@@ -316,35 +316,35 @@ cursor stands on another byte, or the document has ended, it stays where it is.
 
 #### took_null
 
-Type: `Json.Decode::Decoder Std::Bool`
+Type: `Json.Decoder::Decoder Std::Bool`
 
 Takes the `null` where the cursor stands on it, and answers whether it did. Where the cursor
 stands on anything else, it stays where it is, so that a member whose value may be `null` is
 read by asking here first.
 
-### namespace Json.Decode::Span
+### namespace Json.Decoder::Span
 
 #### escaped
 
-Type: `Json.Decode::Span -> Std::Bool`
+Type: `Json.Decoder::Span -> Std::Bool`
 
 Whether a backslash stands among the bytes, so that the text needs unescaping to be read.
 
 #### from
 
-Type: `Json.Decode::Span -> Std::I64`
+Type: `Json.Decoder::Span -> Std::I64`
 
 The position of the first byte of the text.
 
 #### to
 
-Type: `Json.Decode::Span -> Std::I64`
+Type: `Json.Decoder::Span -> Std::I64`
 
 The position one past the last byte of the text.
 
 ## Types and aliases
 
-### namespace Json.Decode
+### namespace Json.Decoder
 
 #### Cursor
 
@@ -368,6 +368,6 @@ Where the text of a string stands in a document, and whether an escape stands am
 
 ## Trait implementations
 
-### impl `Json.Decode::Decoder : Std::Functor`
+### impl `Json.Decoder::Decoder : Std::Functor`
 
-### impl `Json.Decode::Decoder : Std::Monad`
+### impl `Json.Decoder::Decoder : Std::Monad`

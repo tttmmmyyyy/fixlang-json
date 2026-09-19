@@ -24,7 +24,7 @@
 // stand.
 //
 // A reading that fails answers with a message naming what the grammar expected and where it stood.
-module Json.Decode;
+module Json.Decoder;
 
 import Json::{Number::_parse, Text::_unescape};
 import Std::{

@@ -34,13 +34,13 @@ answers with the tree that was written.
 
 # Reading without a tree
 
-`Json.Decode` reads what you want and leaves the rest of the document unread. `read_object` hands
+`Json.Decoder` reads what you want and leaves the rest of the document unread. `read_object` hands
 you each member as it meets it, and carries the value you build from one member to the next.
 
 ```
 module Main;
 
-import Json.Decode::{
+import Json.Decoder::{
     Decoder,
     Decoder::{decode, is_named, read_array, read_bool, read_number, read_object, read_text,
               read_text_span}
