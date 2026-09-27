@@ -1,6 +1,6 @@
 module Test;
 
-import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, null, number, object, string}, Object::find, Number::{_parse, _write}, read, write};
+import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, null, number, object, string}, Object::find, Number::_parse, read, write};
 import Json.Decoder::{Decoder, Span, Decoder::{decode, enter_object, fail_expecting, is_named, is_named_as_written, read_array, read_bool, read_member, read_null, read_number, read_object, read_text, read_text_span, took_null}};
 import Std::{
     loop, Array, Bool, ErrMsg, F64, I64, IO, Option, Result, String, U8,
@@ -56,6 +56,8 @@ test_write = (
         (Json::string(""), "\"\""),
         (Json::string("a/b"), "\"a/b\""),
         (Json::string("\"\\\n\r\t"), "\"\\\"\\\\\\n\\r\\t\""),
+        (Json::string("ab\"cd\\ef"), "\"ab\\\"cd\\\\ef\""),
+        (Json::string([1_U8, 'x', 8_U8, 12_U8, 31_U8, 0_U8].from_bytes.as_ok), "\"\\u0001x\\b\\f\\u001f\""),
         (Json::array([]), "[]"),
         (Json::array([Json::number(1.0), Json::null()]), "[1.0,null]"),
         (Json::object([]), "{}"),

@@ -13,3 +13,8 @@ files = [
 
 [build.test]
 files = ["test.fix"]
+
+[[dependencies]]
+name = "std-experimental"
+version = "0.1.0"
+git = { url = "https://github.com/tttmmmyyyy/fixlang-std-experimental.git" }
