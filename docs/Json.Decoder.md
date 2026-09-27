@@ -1,6 +1,6 @@
 # Json.Decoder
 
-Defined in json@0.5.0
+Defined in json@0.6.0
 
 Reads what you want out of a JSON document and leaves the rest of it unread.
 

@@ -2,11 +2,12 @@
 // carry one into the other.
 module Json;
 
+import Std.Experimental::{Format, Format::{write_text, TextOut}, String::format};
 import Std::{
     loop, Array, Bool, Eq, ErrMsg, F64, I64, Option, Result, String, U8, 
     Array::{@, @size, empty, get_sub, push_back}, FromBytes::from_bytes, 
     FromString::from_string, Iterator::{fold, loop_iter, range}, LoopState::{break, continue}, 
-    Option::{as_some, is_some, none, some}, Result::{as_err, as_ok, err, is_err, ok}, String::get_bytes, 
+    Option::{as_some, is_some, none, some}, Result::{as_err, as_ok, err, is_err, ok}, String::{get_bytes, get_sub}, 
     ToF64::f64, ToI64::i64, ToString::to_string, ToU8::u8, Tuple2::{@0, @1}
 };
 
@@ -354,107 +355,77 @@ namespace Text {
 // # Parameters
 // * `document` - The tree to write.
 write : Json -> String;
-write = |document| (
-    Write::_value(Array::empty(1024), document)._string_of
-);
+write = |document| "{}".format((document,));
 
-namespace Write {
-    // Appends the bytes of `text` to `buffer`.
-    //
-    // # Parameters
-    // * `text` - The text to append.
-    // * `buffer` - The buffer to append to.
-    _append : String -> Array U8 -> Array U8;
-    _append = |text, buffer| (
-        // `get_bytes` answers with the string's own array, which the string keeps holding, so dropping
-        // its null terminator would copy the whole of it. The terminator is left in place and the
-        // length stops one short of it.
-        let bytes = text.get_bytes;
-        let size = bytes.@size - 1;
-        range(0, size).fold(buffer, |i, buffer| buffer.push_back(bytes.@(i)))
-    );
-
-    // Appends the text of `value` to `buffer`.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `value` - The value to write.
-    _value : Array U8 -> Json -> Array U8;
-    _value = |buffer, value| (
+// Writes a value as JSON text, the same text `write` returns for it. A document can then be one
+// of the values `format` fills a template with: `"{{\"points\":{}}}".format((points,))`.
+impl Json : Format {
+    write_text = |value, out| (
         match value {
-            null() => buffer._append("null"),
-            bool(yes) => if yes { buffer._append("true") } else { buffer._append("false") },
-            number(x) => Number::_write(buffer, x),
-            string(text) => Write::_string(buffer, text),
-            object(members) => Write::_object(buffer, members),
-            array(elements) => Write::_array(buffer, elements)
+            null() => out.write_text("null"),
+            bool(yes) => out.write_text(yes),
+            number(x) => out.write_text(x),
+            string(text) => Write::_string(text, out),
+            object(members) => (
+                let out = range(0, members.@size).fold(out.write_text("{"), |i, out|
+                    let (name, member) = members.@(i);
+                    let out = if i == 0 { out } else { out.write_text(",") };
+                    Write::_string(name, out).write_text(":").write_text(member)
+                );
+                out.write_text("}")
+            ),
+            array(elements) => (
+                let out = range(0, elements.@size).fold(out.write_text("["), |i, out|
+                    let out = if i == 0 { out } else { out.write_text(",") };
+                    out.write_text(elements.@(i))
+                );
+                out.write_text("]")
+            )
         }
     );
+}
 
-    // Appends the members of an object to `buffer`, in the order they stand in.
+namespace Write {
+    // Appends a string to `out`, in quotes, with the bytes JSON spells with an escape escaped.
+    //
+    // The stretches between those bytes are appended whole, so a string holding none of them is
+    // appended in one copy.
     //
     // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `members` - The members to write.
-    _object : Array U8 -> Object -> Array U8;
-    _object = |buffer, members| (
-        let size = members.@size;
-        let buffer = buffer.push_back('{');
-        let buffer = range(0, size).fold(buffer, |i, buffer|
-            let member = members.@(i);
-            let buffer = if i == 0 { buffer } else { buffer.push_back(',') };
-            let buffer = Write::_string(buffer, member.@0).push_back(':');
-            Write::_value(buffer, member.@1)
-        );
-        buffer.push_back('}')
-    );
-
-    // Appends the elements of an array to `buffer`.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `elements` - The elements to write.
-    _array : Array U8 -> Array Json -> Array U8;
-    _array = |buffer, elements| (
-        let size = elements.@size;
-        let buffer = buffer.push_back('[');
-        let buffer = range(0, size).fold(buffer, |i, buffer|
-            let buffer = if i == 0 { buffer } else { buffer.push_back(',') };
-            Write::_value(buffer, elements.@(i))
-        );
-        buffer.push_back(']')
-    );
-
-    // Appends a string to `buffer`, in quotes, with the bytes JSON spells with an escape escaped.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
     // * `text` - The text to write.
-    _string : Array U8 -> String -> Array U8;
-    _string = |buffer, text| (
+    // * `out` - The text written so far.
+    _string : String -> TextOut -> TextOut;
+    _string = |text, out| (
         let bytes = text.get_bytes;
         let size = bytes.@size - 1;
-        let buffer = buffer.push_back('"');
-        let buffer = range(0, size).fold(buffer, |i, buffer|
+        let (out, start) = range(0, size).fold((out.write_text("\""), 0), |i, (out, start)|
             let c = bytes.@(i);
-            if c == '"' { buffer.push_back('\\').push_back('"') };
-            if c == '\\' { buffer.push_back('\\').push_back('\\') };
-            if c >= ' ' { buffer.push_back(c) };
-            if c == 8_U8 { buffer._append("\\b") };
-            if c == 12_U8 { buffer._append("\\f") };
-            if c == '\n' { buffer._append("\\n") };
-            if c == '\r' { buffer._append("\\r") };
-            if c == '\t' { buffer._append("\\t") };
-            buffer._append("\\u00")
-                .push_back(_hex_digits.@(c.i64 / 16))
-                .push_back(_hex_digits.@(c.i64 % 16))
+            if c != '"' && c != '\\' && c >= ' ' { (out, start) };
+            (out.write_text(text.get_sub(start, i)).write_text(_escape(c)), i + 1)
         );
-        buffer.push_back('"')
+        let out = if start == 0 { out.write_text(text) } else { out.write_text(text.get_sub(start, size)) };
+        out.write_text("\"")
+    );
+
+    // The escape JSON spells a quotation mark, a backslash or a control character with.
+    //
+    // # Parameters
+    // * `c` - The byte to spell.
+    _escape : U8 -> String;
+    _escape = |c| (
+        if c == '"' { "\\\"" };
+        if c == '\\' { "\\\\" };
+        if c == 8_U8 { "\\b" };
+        if c == 12_U8 { "\\f" };
+        if c == '\n' { "\\n" };
+        if c == '\r' { "\\r" };
+        if c == '\t' { "\\t" };
+        "\\u00{}{}".format((_hex_digits.@(c.i64 / 16), _hex_digits.@(c.i64 % 16)))
     );
 
     // The letters a hexadecimal digit is written with.
-    _hex_digits : Array U8;
-    _hex_digits = "0123456789abcdef".get_bytes;
+    _hex_digits : Array String;
+    _hex_digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 }
 
 namespace Number {
@@ -472,14 +443,6 @@ namespace Number {
         if exact.is_some { ok $ exact.as_some };
         from_string(bytes.get_sub(at, end)._string_of)
     );
-
-    // Appends `value` to `buffer`, in the shortest decimal form that reads back as itself.
-    //
-    // # Parameters
-    // * `buffer` - The buffer to append to.
-    // * `value` - The number to write.
-    _write : Array U8 -> F64 -> Array U8;
-    _write = |buffer, value| buffer._append(value.to_string);
 
     // The number the bytes from `at` to `end` write, when they write one whose nearest double is a
     // whole number below `_mantissa_bound` scaled by a power of ten that a double holds exactly.
