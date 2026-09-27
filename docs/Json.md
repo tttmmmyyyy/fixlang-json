@@ -105,7 +105,8 @@ gives them.
 
 ### impl `Json::Json : Std.Experimental::Format`
 
-A value is written as `write` writes it, so a document can stand in the template of `format`.
+Writes a value as JSON text, the same text `write` returns for it. A document can then be one
+of the values `format` fills a template with: `"{{\"points\":{}}}".format((points,))`.
 
 ### impl `Json::Json : Std::Eq`
 
