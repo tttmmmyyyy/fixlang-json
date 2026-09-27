@@ -1,6 +1,6 @@
 # Json
 
-Defined in json@0.5.0
+Defined in json@0.6.0
 
 A JSON document: the value it holds, the text it is written in, and the reading and writing that
 carry one into the other.
@@ -102,6 +102,10 @@ gives them.
 ## Traits and aliases
 
 ## Trait implementations
+
+### impl `Json::Json : Std.Experimental::Format`
+
+A value is written as `write` writes it, so a document can stand in the template of `format`.
 
 ### impl `Json::Json : Std::Eq`
 

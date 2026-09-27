@@ -2,6 +2,7 @@ module Test;
 
 import Json::{Json, Json::{array, as_array, as_number, as_object, as_string, bool, null, number, object, string}, Object::find, Number::_parse, read, write};
 import Json.Decoder::{Decoder, Span, Decoder::{decode, enter_object, fail_expecting, is_named, is_named_as_written, read_array, read_bool, read_member, read_null, read_number, read_object, read_text, read_text_span, took_null}};
+import Std.Experimental::String::format;
 import Std::{
     loop, Array, Bool, ErrMsg, F64, I64, IO, Option, Result, String, U8,
     Array::{empty, get_sub, push_back, to_iter, @, @size}, Debug::{assert, assert_eq},
@@ -64,7 +65,10 @@ test_write = (
         (Json::object([("a", Json::number(1.0)), ("b", Json::number(2.0))]), "{\"a\":1.0,\"b\":2.0}")
     ].to_iter.fold_m((), |(value, expected), _|
         assert_eq(|_| "write " + expected, Json::write(value), expected)
-    )
+    );;
+    let points = Json::array([Json::number(1.5), Json::string("a\"b")]);
+    assert_eq(|_| "format a document into a template",
+              "{{\"points\":{}}}".format((points,)), "{\"points\":[1.5,\"a\\\"b\"]}")
 );
 
 // The value a document is read as, over texts the grammar accepts.

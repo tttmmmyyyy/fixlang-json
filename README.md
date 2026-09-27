@@ -32,6 +32,10 @@ let text = write(document);   // {"name":"a point","at":[1.5,-2.25]}
 A number is written in the shortest decimal form that reads back as itself, so reading the text
 answers with the tree that was written.
 
+`Json` implements `Format` from [std-experimental](https://github.com/tttmmmyyyy/fixlang-std-experimental),
+so a document can stand in a template: `"{{\"points\":{}}}".format((array(points),))` writes
+`{"points":` and `}` around the text `write` gives `array(points)`.
+
 # Reading without a tree
 
 `Json.Decoder` reads what you want and leaves the rest of the document unread. `read_object` hands
