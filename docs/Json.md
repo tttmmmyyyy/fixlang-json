@@ -5,6 +5,18 @@ Defined in json@0.7.0
 A JSON document: the value it holds, the text it is written in, and the reading and writing that
 carry one into the other.
 
+`read` turns a text into a `Json`, whose members `Object::find` looks up by name, and `write`
+turns a `Json` built from `object`, `array`, `number` and the other variants back into text.
+
+```fix
+let document = read("{\"name\":\"a point\",\"at\":[1.5,-2.25]}").as_ok;
+let at = document.as_object.find("at").as_some.as_array;
+assert_eq(|_|"", at.@(1).as_number, -2.25);;
+
+let point = object([("x", number(1.5)), ("y", number(-2.25))]);
+assert_eq(|_|"", write(point), "{\"x\":1.5,\"y\":-2.25}")
+```
+
 ## Values
 
 ### namespace Json
@@ -49,10 +61,10 @@ The value the member named `name` holds, or `none` when the object carries no su
 
 ##### Examples
 
-```
-let document = read("{\"x\":1.5,\"y\":2.5}").as_ok;
-document.as_object.find("x")   // some(number(1.5))
-document.as_object.find("z")   // none()
+```fix
+let members = read("{\"x\":1.5,\"y\":2.5}").as_ok.as_object;
+assert_eq(|_|"", members.find("x"), some(number(1.5)));;
+assert(|_|"", members.find("z").is_none)
 ```
 
 ## Types and aliases

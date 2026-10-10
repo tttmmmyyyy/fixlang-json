@@ -8,18 +8,18 @@ A `Decoder a` reads an `a` from where the cursor stands and leaves the cursor be
 read. Build one out of the primitives below, chain them with `*` and `;;`, and run it over a
 document with `decode`.
 
-```
+```fix
 // The number the member `x` of the object at the cursor holds.
-_x : Decoder F64;
-_x = (
+read_x : Decoder F64;
+read_x = (
     enter_object;;
     let span = *read_member;
     let is_x = *is_named(span, "x");
-    if !is_x { Decoder::fail_expecting("the member x") };
+    if !is_x { fail_expecting("the member x") };
     read_number
 );
 
-let value = *_x.decode("{\"x\": 1.5}");   // ok(1.5)
+assert_eq(|_|"", read_x.decode("{\"x\": 1.5}"), ok(1.5))
 ```
 
 A string comes back as a `Span`, where its bytes stand in the document, and those bytes are the
@@ -77,9 +77,9 @@ Runs a reading over a whole document, and answers with what it read.
 
 ##### Examples
 
-```
-read_number.decode("1.5")   // ok(1.5)
-read_number.decode("x")     // err("expected a number at 0")
+```fix
+assert_eq(|_|"", read_number.decode("1.5"), ok(1.5));;
+assert(|_|"", read_number.decode("x").is_err)
 ```
 
 #### enter_array
@@ -164,12 +164,12 @@ An element it reads nothing of is passed over here, as a member is in `read_obje
 
 ##### Examples
 
-```
+```fix
 read_numbers : Decoder (Array F64);
 read_numbers = read_array([], |values| let v = *read_number; pure $ values.push_back(v));
 
-read_numbers.decode("[1.0, 2.0, 3.0]")   // ok([1.0, 2.0, 3.0])
-read_numbers.decode("[]")                // ok([])
+assert_eq(|_|"", read_numbers.decode("[1.0, 2.0, 3.0]"), ok([1.0, 2.0, 3.0]));;
+assert_eq(|_|"", read_numbers.decode("[]"), ok([]))
 ```
 
 #### read_bool
@@ -214,7 +214,7 @@ alone.
 
 ##### Examples
 
-```
+```fix
 type Point = struct { x : F64, y : F64 };
 
 read_point : Decoder Point;
@@ -224,8 +224,9 @@ read_point = read_object(Point { x : 0.0, y : 0.0 }, |name, point|
     pure $ point
 );
 
-read_point.decode("{ \"y\" : 2.0, \"z\" : 9.0, \"x\" : 1.0 }")
-// ok(Point { x : 1.0, y : 2.0 })  -- any order, and `z` is passed over
+// The members come in any order, and `z` is passed over.
+let point = read_point.decode("{ \"y\" : 2.0, \"z\" : 9.0, \"x\" : 1.0 }").as_ok;
+assert_eq(|_|"", (point.@x, point.@y), (1.0, 2.0))
 ```
 
 #### read_separator
@@ -251,19 +252,19 @@ The text the span stands for, with every escape resolved.
 
 ##### Examples
 
-```
+```fix
 // The text of a string value.
-read_string : Decoder String;
-read_string = (let span = *read_text_span; read_text(span));
-
-read_string.decode("\"a b\"")        // ok("a b")
-read_string.decode("\"\\u0078\"")     // ok("x")   -- the escape is resolved here
+read_string_text : Decoder String;
+read_string_text = (let span = *read_text_span; read_text(span));
 
 // The name of a member, which `read_member` hands you as a span.
 read_name : Decoder String;
 read_name = (enter_object;; let name = *read_member; read_text(name));
 
-read_name.decode("{\"x\":1.5}")      // ok("x")
+assert_eq(|_|"", read_string_text.decode("\"a b\""), ok("a b"));;
+// The escape is resolved here.
+assert_eq(|_|"", read_string_text.decode("\"\\u0078\""), ok("x"));;
+assert_eq(|_|"", read_name.decode("{\"x\":1.5}"), ok("x"))
 ```
 
 #### read_text_span

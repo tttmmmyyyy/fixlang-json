@@ -4,18 +4,23 @@
 // read. Build one out of the primitives below, chain them with `*` and `;;`, and run it over a
 // document with `decode`.
 //
-// ```
+// ```fix
+// # module DocTest;
+// # import Json.Decoder;
+// #
 // // The number the member `x` of the object at the cursor holds.
-// _x : Decoder F64;
-// _x = (
+// read_x : Decoder F64;
+// read_x = (
 //     enter_object;;
 //     let span = *read_member;
 //     let is_x = *is_named(span, "x");
-//     if !is_x { Decoder::fail_expecting("the member x") };
+//     if !is_x { fail_expecting("the member x") };
 //     read_number
 // );
 //
-// let value = *_x.decode("{\"x\": 1.5}");   // ok(1.5)
+// # main : IO () = (
+// assert_eq(|_|"", read_x.decode("{\"x\": 1.5}"), ok(1.5))
+// # );
 // ```
 //
 // A string comes back as a `Span`, where its bytes stand in the document, and those bytes are the
@@ -88,9 +93,9 @@ namespace Decoder {
     //
     // # Examples
     //
-    // ```
-    // read_number.decode("1.5")   // ok(1.5)
-    // read_number.decode("x")     // err("expected a number at 0")
+    // ```fix
+    // assert_eq(|_|"", read_number.decode("1.5"), ok(1.5));;
+    // assert(|_|"", read_number.decode("x").is_err)
     // ```
     decode : String -> Decoder a -> Result ErrMsg a;
     decode = |text, decoder| (
@@ -263,19 +268,24 @@ namespace Decoder {
     //
     // # Examples
     //
-    // ```
+    // ```fix
+    // # module DocTest;
+    // # import Json.Decoder;
+    // #
     // // The text of a string value.
-    // read_string : Decoder String;
-    // read_string = (let span = *read_text_span; read_text(span));
-    //
-    // read_string.decode("\"a b\"")        // ok("a b")
-    // read_string.decode("\"\\u0078\"")     // ok("x")   -- the escape is resolved here
+    // read_string_text : Decoder String;
+    // read_string_text = (let span = *read_text_span; read_text(span));
     //
     // // The name of a member, which `read_member` hands you as a span.
     // read_name : Decoder String;
     // read_name = (enter_object;; let name = *read_member; read_text(name));
     //
-    // read_name.decode("{\"x\":1.5}")      // ok("x")
+    // # main : IO () = (
+    // assert_eq(|_|"", read_string_text.decode("\"a b\""), ok("a b"));;
+    // // The escape is resolved here.
+    // assert_eq(|_|"", read_string_text.decode("\"\\u0078\""), ok("x"));;
+    // assert_eq(|_|"", read_name.decode("{\"x\":1.5}"), ok("x"))
+    // # );
     // ```
     read_text : Span -> Decoder String;
     read_text = |span| Decoder { _run : |c|
@@ -413,7 +423,10 @@ namespace Decoder {
     //
     // # Examples
     //
-    // ```
+    // ```fix
+    // # module DocTest;
+    // # import Json.Decoder;
+    // #
     // type Point = struct { x : F64, y : F64 };
     //
     // read_point : Decoder Point;
@@ -423,8 +436,11 @@ namespace Decoder {
     //     pure $ point
     // );
     //
-    // read_point.decode("{ \"y\" : 2.0, \"z\" : 9.0, \"x\" : 1.0 }")
-    // // ok(Point { x : 1.0, y : 2.0 })  -- any order, and `z` is passed over
+    // # main : IO () = (
+    // // The members come in any order, and `z` is passed over.
+    // let point = read_point.decode("{ \"y\" : 2.0, \"z\" : 9.0, \"x\" : 1.0 }").as_ok;
+    // assert_eq(|_|"", (point.@x, point.@y), (1.0, 2.0))
+    // # );
     // ```
     read_object : s -> (Span -> s -> Decoder s) -> Decoder s;
     read_object = |state, member| (
@@ -469,12 +485,17 @@ namespace Decoder {
     //
     // # Examples
     //
-    // ```
+    // ```fix
+    // # module DocTest;
+    // # import Json.Decoder;
+    // #
     // read_numbers : Decoder (Array F64);
     // read_numbers = read_array([], |values| let v = *read_number; pure $ values.push_back(v));
     //
-    // read_numbers.decode("[1.0, 2.0, 3.0]")   // ok([1.0, 2.0, 3.0])
-    // read_numbers.decode("[]")                // ok([])
+    // # main : IO () = (
+    // assert_eq(|_|"", read_numbers.decode("[1.0, 2.0, 3.0]"), ok([1.0, 2.0, 3.0]));;
+    // assert_eq(|_|"", read_numbers.decode("[]"), ok([]))
+    // # );
     // ```
     read_array : s -> (s -> Decoder s) -> Decoder s;
     read_array = |state, element| (
