@@ -15,7 +15,7 @@ read_x = (
     enter_object;;
     let span = *read_member;
     let is_x = *is_named(span, "x");
-    if !is_x { Decoder::fail_expecting("the member x") };
+    if !is_x { fail_expecting("the member x") };
     read_number
 );
 
