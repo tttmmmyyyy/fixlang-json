@@ -1,6 +1,6 @@
 # Json
 
-Defined in json@0.7.0
+Defined in json@0.8.0
 
 A JSON document: the value it holds, the text it is written in, and the reading and writing that
 carry one into the other.
