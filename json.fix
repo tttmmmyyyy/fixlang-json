@@ -14,11 +14,11 @@
 // ```
 module Json;
 
-import Std.Experimental::{Format, Format::{write_text, TextOut}, String::format};
+import Std.Experimental::{Format, TextWriter, Format::{write_text, TextOut}, String::format, TextWriter::flush_if_full};
 import Std::{
     loop, Array, Bool, Eq, ErrMsg, F64, I64, Option, Result, String, U8, 
     Array::{@, @size, empty, get_sub, push_back}, FromBytes::from_bytes, 
-    FromString::from_string, Iterator::{fold, loop_iter, range}, LoopState::{break, continue}, 
+    FromString::from_string, Iterator::{fold, fold_m, loop_iter, range}, LoopState::{break, continue}, Monad, Monad::{bind, pure}, 
     Option::{as_some, is_some, none, some}, Result::{as_err, as_ok, err, is_err, ok}, String::{get_bytes, get_sub}, 
     ToF64::f64, ToI64::i64, ToString::to_string, ToU8::u8, Tuple2::{@0, @1}
 };
@@ -370,7 +370,8 @@ write : Json -> String;
 write = |document| "{}".format((document,));
 
 // Writes a value as JSON text, the same text `write` returns for it. A document can then be one
-// of the values `format` fills a template with: `"{{\"points\":{}}}".format((points,))`.
+// of the values `format` and `printf` fill a template with:
+// `"{{\"points\":{}}}".format((points,))`.
 impl Json : Format {
     write_text = |value, out| (
         match value {
@@ -379,18 +380,24 @@ impl Json : Format {
             number(x) => out.write_text(x),
             string(text) => Write::_string(text, out),
             object(members) => (
-                let out = range(0, members.@size).fold(out.write_text("{"), |i, out|
+                let out = *out.write_text("{");
+                let out = *range(0, members.@size).fold_m(out, |i, out| (
                     let (name, member) = members.@(i);
-                    let out = if i == 0 { out } else { out.write_text(",") };
-                    Write::_string(name, out).write_text(":").write_text(member)
-                );
+                    let out = *(if i == 0 { pure(out) } else { out.write_text(",") });
+                    let out = *Write::_string(name, out);
+                    let out = *out.write_text(":");
+                    let out = *out.write_text(member);
+                    out.flush_if_full
+                ));
                 out.write_text("}")
             ),
             array(elements) => (
-                let out = range(0, elements.@size).fold(out.write_text("["), |i, out|
-                    let out = if i == 0 { out } else { out.write_text(",") };
-                    out.write_text(elements.@(i))
-                );
+                let out = *out.write_text("[");
+                let out = *range(0, elements.@size).fold_m(out, |i, out| (
+                    let out = *(if i == 0 { pure(out) } else { out.write_text(",") });
+                    let out = *out.write_text(elements.@(i));
+                    out.flush_if_full
+                ));
                 out.write_text("]")
             )
         }
@@ -406,16 +413,19 @@ namespace Write {
     // # Parameters
     // * `text` - The text to write.
     // * `out` - The text written so far.
-    _string : String -> TextOut -> TextOut;
+    _string : [m : Monad, m : TextWriter] String -> TextOut -> m TextOut;
     _string = |text, out| (
         let bytes = text.get_bytes;
         let size = bytes.@size - 1;
-        let (out, start) = range(0, size).fold((out.write_text("\""), 0), |i, (out, start)|
+        let out = *out.write_text("\"");
+        let (out, start) = *range(0, size).fold_m((out, 0), |i, (out, start)| (
             let c = bytes.@(i);
-            if c != '"' && c != '\\' && c >= ' ' { (out, start) };
-            (out.write_text(text.get_sub(start, i)).write_text(_escape(c)), i + 1)
-        );
-        let out = if start == 0 { out.write_text(text) } else { out.write_text(text.get_sub(start, size)) };
+            if c != '"' && c != '\\' && c >= ' ' { pure $ (out, start) };
+            let out = *out.write_text(text.get_sub(start, i));
+            let out = *out.write_text(_escape(c));
+            pure $ (out, i + 1)
+        ));
+        let out = *(if start == 0 { out.write_text(text) } else { out.write_text(text.get_sub(start, size)) });
         out.write_text("\"")
     );
 

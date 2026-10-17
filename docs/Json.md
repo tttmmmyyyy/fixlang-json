@@ -1,6 +1,6 @@
 # Json
 
-Defined in json@0.8.0
+Defined in json@0.9.0
 
 A JSON document: the value it holds, the text it is written in, and the reading and writing that
 carry one into the other.
@@ -118,7 +118,8 @@ gives them.
 ### impl `Json::Json : Std.Experimental::Format`
 
 Writes a value as JSON text, the same text `write` returns for it. A document can then be one
-of the values `format` fills a template with: `"{{\"points\":{}}}".format((points,))`.
+of the values `format` and `printf` fill a template with:
+`"{{\"points\":{}}}".format((points,))`.
 
 ### impl `Json::Json : Std::Eq`
 
