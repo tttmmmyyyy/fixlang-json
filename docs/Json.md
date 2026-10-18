@@ -1,6 +1,6 @@
 # Json
 
-Defined in json@0.9.0
+Defined in json@0.10.0
 
 A JSON document: the value it holds, the text it is written in, and the reading and writing that
 carry one into the other.
@@ -115,14 +115,14 @@ gives them.
 
 ## Trait implementations
 
-### impl `Json::Json : Std.Experimental::Format`
-
-Writes a value as JSON text, the same text `write` returns for it. A document can then be one
-of the values `format` and `printf` fill a template with:
-`"{{\"points\":{}}}".format((points,))`.
-
 ### impl `Json::Json : Std::Eq`
 
 Two values are equal when they are the same kind and hold the same thing. Two objects are equal
 when their members stand in the same order and hold the same values, so a document that names its
 members in another order gives another value.
+
+### impl `Json::Json : Std::Format`
+
+Writes a value as JSON text, the same text `write` returns for it. A document can then be one
+of the values `format` and `printf` fill a template with:
+`"{{\"points\":{}}}".format((points,))`.
